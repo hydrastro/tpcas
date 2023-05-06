@@ -121,6 +121,10 @@ char *pl_get_symbol_char(const pl_symbol_type_t *type) {
 }
 
 void pl_print_tree(pl_node_t *ast) {
+    if (ast == NULL) {
+        printf("null");
+        return;
+    }
     if (ast->type == PL_CONSTANT) {
         printf("%s", ast->value.constant);
     } else if (ast->type == PL_VARIABLE) {
@@ -253,7 +257,6 @@ pl_node_t *pl_build_ast(pl_symbol_list_t *symbol_list, pl_node_list_t *node_list
     pl_node_node_t *node_node;
     if (symbol_list->size == 0) {
         if (node_list->size == 1) {
-            fflush(stdout);
             return node_list->head->node;
         }
         // bad
@@ -281,8 +284,7 @@ pl_node_t *pl_build_ast(pl_symbol_list_t *symbol_list, pl_node_list_t *node_list
                         node_node->node = node;
                         pl_node_list_remove(node_list, node_node->next);
                     } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
-                        pl_print_tree(node_list->tail->node);
-                        node = pl_make_binary(&(pl_symbols[i]), node_node->prev->node, node_node->node);
+                        node = pl_make_binary(&(pl_symbols[i]), node_node->node, node_node->prev->node);
                         node_node->node = node;
                         pl_node_list_remove(node_list, node_node->prev);
                     }
@@ -318,15 +320,12 @@ pl_node_t *pl_parse_ast(pl_node_t *ast, pl_token_node_t *tokenized) {
     pl_node_list_t *nodes_list = pl_node_list_create();
     while (tokenized != NULL) {
         switch (tokenized->token->type) {
-            case PL_TOKEN_RIGHT_PAREN:
+            case PL_TOKEN_LEFT_PAREN:
                 *tokenized = *(tokenized->next);
                 node = pl_parse_ast(ast, tokenized);
                 pl_node_list_push(nodes_list, node);
                 break;
-            case PL_TOKEN_LEFT_PAREN:
-                if (tokenized->next != NULL) {
-                    *tokenized = *(tokenized->next);
-                }
+            case PL_TOKEN_RIGHT_PAREN:
                 return pl_build_ast(symbols_list, nodes_list);
             case PL_TOKEN_CONSTANT:
                 node = pl_make_constant((tokenized)->token->value);
