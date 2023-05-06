@@ -10,6 +10,10 @@ command_regex_map_t command_regex_maps[COMMAND_REGEX_MAPS_SIZE] = {
                 .execute_function = &pl_parse_and_print_tree
         },
         {
+            .regex = "^[Ee][Vv][Aa][Ll]\\((.*)\\)",
+            .execute_function = &pl_parse_and_eval
+        },
+        {
                 .regex = "^([Ee][Xx][Ii][Tt]|[Qq][Uu][Ii][Tt]).*",
                 .execute_function = &shell_exit
         }

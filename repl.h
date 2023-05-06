@@ -1,6 +1,6 @@
 #ifndef CAS_REPL_H
 #define CAS_REPL_H
-#define COMMAND_REGEX_MAPS_SIZE 2
+#define COMMAND_REGEX_MAPS_SIZE 3
 #include <regex.h>
 
 typedef enum SHELL_EXIT_CODES {
