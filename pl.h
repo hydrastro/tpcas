@@ -106,9 +106,6 @@ typedef struct pl_node_list {
     size_t size;
 } pl_node_list_t;
 
-
-
-
 bool pl_validate_symbol(char *symbol);
 
 bool pl_is_well_formed(pl_node_t *ast);
@@ -121,11 +118,9 @@ pl_node_t *pl_make_constant(char *constant);
 
 pl_node_t *pl_make_variable(char *variable);
 
-pl_node_t *pl_make_symbol(const pl_symbol_t *symbol, int argc, pl_node_t *arguments[]);
+pl_node_t *pl_make_symbol(const pl_symbol_t *symbol);
 
-pl_node_t *pl_make_binary(const pl_symbol_t *symbol, pl_node_t *left, pl_node_t *right);
-
-pl_node_t *pl_make_unary(const pl_symbol_t *symbol, pl_node_t *argument);
+pl_node_t *pl_make_symbol_args(pl_node_t *node, int argc, pl_node_t *arguments[]);
 
 void pl_print_tree(pl_node_t *ast);
 
@@ -137,7 +132,7 @@ pl_token_node_t *pl_tokenize(char *line);
 
 int pl_get_precedence(const pl_symbol_type_t *type);
 
-pl_node_t *pl_build_ast(pl_symbol_list_t *symbol_list, pl_node_list_t *node_list);
+pl_node_t *pl_build_ast(pl_node_list_t *node_list, pl_node_list_t *visited_list);
 
 pl_node_t *pl_parse_ast(pl_node_t *ast, pl_token_node_t *tokenized);
 
@@ -165,12 +160,14 @@ void pl_symbol_list_push(pl_symbol_list_t *list, const pl_symbol_t *symbol);
 
 void pl_node_list_push(pl_node_list_t *list, pl_node_t *node);
 
-const pl_symbol_t * pl_symbol_list_pop(pl_symbol_list_t *list);
+const pl_symbol_t *pl_symbol_list_pop(pl_symbol_list_t *list);
 
-pl_node_t * pl_node_list_pop(pl_node_list_t *list);
+pl_node_t *pl_node_list_pop(pl_node_list_t *list);
 
 void pl_symbol_list_remove(pl_symbol_list_t *list, const pl_symbol_node_t *symbol);
+
 void pl_node_list_remove(pl_node_list_t *list, pl_node_node_t *node);
 
+bool pl_node_list_contains(pl_node_list_t *list, pl_node_node_t *node);
 
 #endif //CAS_PL_H

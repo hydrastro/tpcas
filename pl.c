@@ -14,7 +14,6 @@ const pl_symbol_map_t pl_symbol_maps[] = {
         {"=>",  PL_SYMBOL_IMPLIES},
         {"<=>", PL_SYMBOL_IFF}
 };
-
 const pl_symbol_t pl_symbols[] = {
         {&(pl_symbol_maps[0].type), 1, PL_NON_ASSOC},
         {&(pl_symbol_maps[1].type), 2, PL_LEFT_ASSOC},
@@ -22,7 +21,6 @@ const pl_symbol_t pl_symbols[] = {
         {&(pl_symbol_maps[3].type), 2, PL_RIGHT_ASSOC},
         {&(pl_symbol_maps[4].type), 2, PL_NON_ASSOC}
 };
-
 
 const pl_constant_t pl_constants[] = {
         {"true",  PL_TRUE},
@@ -89,24 +87,16 @@ pl_node_t *pl_make_variable(char *variable) {
     return node;
 }
 
-pl_node_t *pl_make_symbol(const pl_symbol_t *symbol, int argc, pl_node_t *arguments[]) {
+pl_node_t *pl_make_symbol(const pl_symbol_t *symbol) {
     pl_node_t *node = (pl_node_t *) malloc(sizeof(pl_node_t));
     node->type = PL_SYMBOL;
-
     node->value.symbol.name = symbol;
+    return node;
+}
 
+pl_node_t *pl_make_symbol_args(pl_node_t *node, int argc, pl_node_t *arguments[]) {
     node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * argc);
     memcpy(node->value.symbol.arguments, arguments, sizeof(pl_node_t *) * argc);
-    return node;
-}
-
-pl_node_t *pl_make_binary(const pl_symbol_t *symbol, pl_node_t *left, pl_node_t *right) {
-    pl_node_t *node = pl_make_symbol(symbol, 2, (pl_node_t *[]) {left, right});
-    return node;
-}
-
-pl_node_t *pl_make_unary(const pl_symbol_t *symbol, pl_node_t *argument) {
-    pl_node_t *node = pl_make_symbol(symbol, 1, (pl_node_t *[]) {argument});
     return node;
 }
 
@@ -214,18 +204,6 @@ pl_token_node_t *pl_tokenize(char *line) {
     }
     head = pl_add_token_symbol(head, buffer, &buffer_index);
 
-    // we revert the list so that it is in the correct order
-    pl_token_node_t *prev = NULL;
-    pl_token_node_t *current = head;
-    pl_token_node_t *next = NULL;
-    while (current != NULL) {
-        next = current->next;
-        current->next = prev;
-        prev = current;
-        current = next;
-    }
-    head = prev;
-
     return head;
 }
 
@@ -250,61 +228,56 @@ int pl_get_precedence(const pl_symbol_type_t *type) {
     return -1;
 }
 
-pl_node_t *pl_build_ast(pl_symbol_list_t *symbol_list, pl_node_list_t *node_list) {
-    int i, j;
-    pl_node_t *node;
-    pl_symbol_node_t *symbol_node = symbol_list->head;
-    pl_node_node_t *node_node;
-    if (symbol_list->size == 0) {
-        if (node_list->size == 1) {
-            return node_list->head->node;
-        }
-        // bad
+pl_node_t *pl_build_ast(pl_node_list_t *node_list, pl_node_list_t *visited_list) {
+    if (node_list->size == 0) {
         return NULL;
     }
+    int i;
+    pl_node_node_t *node_node;
+    pl_node_t *node;
     for (i = 0; i < sizeof(pl_symbols) / sizeof(pl_symbol_t); i++) {
         if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
-            node_node = node_list->head;
-        } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
             node_node = node_list->tail;
+        } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
+            node_node = node_list->head;
         }
-        symbol_node = symbol_list->tail;
-        while (symbol_node != NULL) {
-            if (symbol_node->symbol->type == pl_symbols[i].type) {
-                if (pl_symbols[i].argc == 1) {
-                    node = pl_make_unary(&(pl_symbols[i]), node_node->node);
-                    node_node->node = node;
-                } else if (pl_symbols[i].argc == 2) {
-                    pl_node_node_t *temp = node_list->head;
-                    while (temp != NULL) {
-                        temp = temp->next;
-                    }
-                    if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
-                        node = pl_make_binary(&(pl_symbols[i]), node_node->node, node_node->next->node);
-                        node_node->node = node;
-                        pl_node_list_remove(node_list, node_node->next);
-                    } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
-                        node = pl_make_binary(&(pl_symbols[i]), node_node->node, node_node->prev->node);
-                        node_node->node = node;
-                        pl_node_list_remove(node_list, node_node->prev);
-                    }
-                } else {
-                    // bad
-                }
-            }
-            if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
-                for (j = 0; j < symbol_node->symbol->argc && node_node->prev != NULL; j++) {
+        while (node_node != NULL) {
+            if (node_node->node->type != PL_SYMBOL || node_node->node->value.symbol.name->type != pl_symbols[i].type ||
+                pl_node_list_contains(visited_list, node_node)) {
+                if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
                     node_node = node_node->prev;
-                }
-            } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
-                for (j = 0; j < symbol_node->symbol->argc && node_node->next != NULL; j++) {
+                } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
                     node_node = node_node->next;
                 }
+                continue;
             }
-            symbol_node = symbol_node->prev;
+            switch (pl_symbols[i].argc) {
+                case 1:
+                    assert(node_node->prev != NULL);
+                    node = pl_make_symbol_args(node_node->node, 1, (pl_node_t *[]) {node_node->prev->node});
+                    node_node->node = node;
+                    pl_node_list_remove(node_list, node_node->prev);
+                    break;
+                case 2:
+                    assert(node_node->prev != NULL);
+                    assert(node_node->next != NULL);
+                    node = pl_make_symbol_args(node_node->node, 2,
+                                               (pl_node_t *[]) {node_node->next->node, node_node->prev->node});
+                    node_node->node = node;
+                    pl_node_list_remove(node_list, node_node->prev);
+                    pl_node_list_remove(node_list, node_node->next);
+                    break;
+                default:
+                    break;
+            }
+            if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
+                node_node = node_node->prev;
+            } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
+                node_node = node_node->next;
+            }
         }
     }
-
+    //assert(node_list->size == 1);
     return node_list->head->node;
 }
 
@@ -316,17 +289,19 @@ pl_node_t *pl_parse_ast(pl_node_t *ast, pl_token_node_t *tokenized) {
         ast = (pl_node_t *) malloc(sizeof(pl_node_t *));
     }
     pl_node_t *node;
-    pl_symbol_list_t *symbols_list = pl_symbol_list_create();
     pl_node_list_t *nodes_list = pl_node_list_create();
+    pl_node_list_t *visited_list = pl_node_list_create();
+    const pl_symbol_t *symbol;
     while (tokenized != NULL) {
         switch (tokenized->token->type) {
             case PL_TOKEN_LEFT_PAREN:
+                return pl_build_ast(nodes_list, visited_list);
+            case PL_TOKEN_RIGHT_PAREN:
                 *tokenized = *(tokenized->next);
                 node = pl_parse_ast(ast, tokenized);
                 pl_node_list_push(nodes_list, node);
+                pl_node_list_push(visited_list, node);
                 break;
-            case PL_TOKEN_RIGHT_PAREN:
-                return pl_build_ast(symbols_list, nodes_list);
             case PL_TOKEN_CONSTANT:
                 node = pl_make_constant((tokenized)->token->value);
                 pl_node_list_push(nodes_list, node);
@@ -336,18 +311,19 @@ pl_node_t *pl_parse_ast(pl_node_t *ast, pl_token_node_t *tokenized) {
                 pl_node_list_push(nodes_list, node);
                 break;
             case PL_TOKEN_SYMBOL:
-                const pl_symbol_t *symbol = pl_get_symbol((tokenized)->token->value);
-                pl_symbol_list_push(symbols_list, symbol);
+                symbol = pl_get_symbol((tokenized)->token->value);
+                node = pl_make_symbol(symbol);
+                pl_node_list_push(nodes_list, node);
                 break;
             default:
                 break;
         }
         if (tokenized->next == NULL) {
-            return pl_build_ast(symbols_list, nodes_list);
+            return pl_build_ast(nodes_list, visited_list);
         }
         *tokenized = *(tokenized->next);
     }
-    return pl_build_ast(symbols_list, nodes_list);
+    return pl_build_ast(nodes_list, visited_list);
 }
 
 int pl_parse_and_print_tree(char *line) {
@@ -484,16 +460,13 @@ void pl_symbol_list_push(pl_symbol_list_t *list, const pl_symbol_t *symbol) {
     pl_symbol_node_t *new_node = malloc(sizeof(pl_symbol_node_t));
     new_node->symbol = symbol;
     new_node->next = NULL;
-    new_node->prev = list->tail; // set prev field to current tail
-
+    new_node->prev = list->tail;
     list->size++;
-
     if (list->head == NULL) {
         list->head = new_node;
         list->tail = new_node;
         return;
     }
-
     list->tail->next = new_node;
     list->tail = new_node;
 }
@@ -502,16 +475,13 @@ void pl_node_list_push(pl_node_list_t *list, pl_node_t *node) {
     pl_node_node_t *new_node = malloc(sizeof(pl_node_node_t));
     new_node->node = node;
     new_node->next = NULL;
-    new_node->prev = list->tail; // set prev field to current tail
-
+    new_node->prev = list->tail;
     list->size++;
-
     if (list->head == NULL) {
         list->head = new_node;
         list->tail = new_node;
         return;
     }
-
     list->tail->next = new_node;
     list->tail = new_node;
 }
@@ -520,7 +490,6 @@ const pl_symbol_t *pl_symbol_list_pop(pl_symbol_list_t *list) {
     if (list->head == NULL) {
         return NULL;
     }
-
     pl_symbol_node_t *node = list->head;
     const pl_symbol_t *symbol = node->symbol;
     list->head = node->next;
@@ -589,4 +558,15 @@ void pl_node_list_remove(pl_node_list_t *list, pl_node_node_t *node) {
         }
         current = current->next;
     }
+}
+
+bool pl_node_list_contains(pl_node_list_t *list, pl_node_node_t *node) {
+    pl_node_node_t *cursor = list->head;
+    while (cursor != NULL) {
+        if (cursor->node == node->node) {
+            return true;
+        }
+        cursor = cursor->next;
+    }
+    return false;
 }
