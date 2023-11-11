@@ -6,7 +6,6 @@
 #include "pl.h"
 
 // constants and symbols could be turned into regexes
-
 const pl_symbol_map_t pl_symbol_maps[] = {
         {"!",   PL_SYMBOL_NOT},
         {"&&",  PL_SYMBOL_AND},
@@ -166,6 +165,7 @@ pl_token_node_t *pl_tokenize(char *line) {
     while (line[i] != '\0') {
         match = false;
         if (line[i] == ' ') {
+            i++;
             continue;
         }
         if (line[i] == '(') {
@@ -217,7 +217,6 @@ int pl_get_symbol_precedence(pl_symbol_type_t type) {
     return -1;
 }
 
-
 int pl_get_precedence(const pl_symbol_type_t *type) {
     int i;
     for (i = 0; i < sizeof(pl_symbol_maps) / sizeof(pl_symbol_map_t); i++) {
@@ -229,30 +228,34 @@ int pl_get_precedence(const pl_symbol_type_t *type) {
 }
 
 pl_node_t *pl_build_ast(pl_node_list_t *node_list, pl_node_list_t *visited_list) {
-    if (node_list->size == 0) {
-        return NULL;
-    }
     int i;
     pl_node_node_t *node_node;
     pl_node_t *node;
+    if (node_list->size == 0) {
+        return NULL;
+    }
     for (i = 0; i < sizeof(pl_symbols) / sizeof(pl_symbol_t); i++) {
-        if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
+        if (pl_symbols[i].assoc == PL_LEFT_ASSOC){
             node_node = node_list->tail;
-        } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
+        // !A and NOT A!.
+        } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
             node_node = node_list->head;
         }
         while (node_node != NULL) {
-            if (node_node->node->type != PL_SYMBOL || node_node->node->value.symbol.name->type != pl_symbols[i].type ||
-                pl_node_list_contains(visited_list, node_node)) {
-                if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
+            if (node_node->node->type != PL_SYMBOL
+            || node_node->node->value.symbol.name->type != pl_symbols[i].type
+            || pl_node_list_contains(visited_list, node_node)) {
+                if (pl_symbols[i].assoc == PL_LEFT_ASSOC) {
                     node_node = node_node->prev;
-                } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
+                } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
                     node_node = node_node->next;
                 }
                 continue;
             }
             switch (pl_symbols[i].argc) {
                 case 1:
+                    // unary operators are assumed to have operands on their right
+                    // and since here the tokenized list is reversed we have to assert prev != NULL
                     assert(node_node->prev != NULL);
                     node = pl_make_symbol_args(node_node->node, 1, (pl_node_t *[]) {node_node->prev->node});
                     node_node->node = node;
@@ -270,9 +273,9 @@ pl_node_t *pl_build_ast(pl_node_list_t *node_list, pl_node_list_t *visited_list)
                 default:
                     break;
             }
-            if (pl_symbols[i].assoc == PL_LEFT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
+            if (pl_symbols[i].assoc == PL_LEFT_ASSOC) {
                 node_node = node_node->prev;
-            } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC) {
+            } else if (pl_symbols[i].assoc == PL_RIGHT_ASSOC || pl_symbols[i].assoc == PL_NON_ASSOC) {
                 node_node = node_node->next;
             }
         }
@@ -339,6 +342,203 @@ int pl_parse_and_eval(char *line) {
     pl_token_node_t *tokenized = pl_tokenize(line);
     pl_node_t *tree = pl_parse_ast(NULL, tokenized);
     assert(tree != NULL);
+    return 1;
+}
+
+int pl_simple_parse_and_print_tree(char *line) {
+    // TODO
+    return 0;
+}
+
+pl_node_t *pl_duplicate_tree(pl_node_t *ast) {
+    int i;
+    pl_node_t *dup;
+    if(ast != NULL) {
+        dup = (pl_node_t *) malloc(sizeof(pl_node_t));
+        dup->type = ast->type;
+        switch(ast->type) {
+            case PL_CONSTANT:
+                dup->value.constant = ast->value.constant;
+                break;
+            case PL_VARIABLE:
+                dup->value.variable = ast->value.variable;
+                break;
+            case PL_SYMBOL:
+                dup->value.symbol.name = ast->value.symbol.name;
+                dup->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * ast->value.symbol.name->argc);
+                for(i = 0; i < ast->value.symbol.name->argc; i++) {
+                    dup->value.symbol.arguments[i] = pl_duplicate_tree(ast->value.symbol.arguments[i]);
+                }
+                break;
+        }
+    }
+    return dup;
+}
+
+void pl_demorgan(pl_node_t *ast) {
+    int i;
+    pl_node_t *next, *new_node, *new_node2, *temp;
+    if(ast == NULL || ast->type != PL_SYMBOL) {
+        return;
+    }
+    if(*(ast->value.symbol.name->type) == PL_SYMBOL_NOT) {
+        next = ast->value.symbol.arguments[0];
+        if(next->type == PL_SYMBOL) {
+            switch(*(next->value.symbol.name->type)) {
+                default:
+                    break;
+                case PL_SYMBOL_NOT:
+                    temp = next->value.symbol.arguments[0];
+                    *ast = *temp;
+                    free(temp);
+                    free(next);
+                    break;
+                // TODO: abstract these two cases in one method
+                case PL_SYMBOL_AND:
+                    // !(A && B) -> (!A) || (!B)
+                    new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_OR]);
+                    new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+                    new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+                    new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+                    new_node2->value.symbol.arguments[0] = next->value.symbol.arguments[0];
+                    new_node->value.symbol.arguments[0] = new_node2;
+                    new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+                    new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+                    new_node2->value.symbol.arguments[0] = next->value.symbol.arguments[1];
+                    new_node->value.symbol.arguments[1] = new_node2;
+                    free(next);
+                    *ast = *new_node;
+                    free(new_node);
+                    break;
+                case PL_SYMBOL_OR:
+                    // !(A || B) -> (!A) && (!B)
+                    new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_AND]);
+                    new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+                    new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+                    new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+                    new_node2->value.symbol.arguments[0] = next->value.symbol.arguments[0];
+                    new_node->value.symbol.arguments[0] = new_node2;
+                    new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+                    new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+                    new_node2->value.symbol.arguments[0] = next->value.symbol.arguments[1];
+                    new_node->value.symbol.arguments[1] = new_node2;
+                    free(next);
+                    *ast = *new_node;
+                    free(new_node);
+                    break;
+            }
+        }
+    }
+    for(i = 0; i < ast->value.symbol.name->argc; i++) {
+        pl_demorgan(ast->value.symbol.arguments[i]);
+    }
+}
+
+void pl_conjunct_disjunct(pl_node_t *ast) {
+    int i;
+    pl_node_t *new_node, *dup;
+    if(ast == NULL || ast->type != PL_SYMBOL) {
+        return;
+    }
+    if(*(ast->value.symbol.name->type) == PL_SYMBOL_OR) {
+        for(i = 0; i < 2; i++) { // argc
+            if(ast->value.symbol.arguments[i]->type == PL_SYMBOL && *(ast->value.symbol.arguments[i]->value.symbol.name->type) == PL_SYMBOL_AND) {
+                // A || (B && C) -> (A || B) && (A || C)
+                // TODO: abstract this method so we can do disjunction_conjunct
+                dup = pl_duplicate_tree(ast->value.symbol.arguments[(i + 1) % 2]);
+                new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_OR]);
+                new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+                new_node->value.symbol.arguments[0] = ast->value.symbol.arguments[(i + 1) % 2];
+                new_node->value.symbol.arguments[1] = ast->value.symbol.arguments[i]->value.symbol.arguments[0];
+                ast->value.symbol.arguments[(i + 1) % 2] = new_node;
+                new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_OR]);
+                new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+                new_node->value.symbol.arguments[0] = dup;
+                new_node->value.symbol.arguments[1] = ast->value.symbol.arguments[i]->value.symbol.arguments[1];
+                ast->value.symbol.arguments[i] = new_node;
+                ast->value.symbol.name = &pl_symbols[PL_SYMBOL_AND];
+            }
+        }
+    }
+    for(i = 0; i < ast->value.symbol.name->argc; i++) {
+        pl_conjunct_disjunct(ast->value.symbol.arguments[i]);
+    }
+}
+
+void pl_to_boolean_basis(pl_node_t *ast) {
+    int i;
+    pl_node_t *new_node, *new_node2, *dup;
+    if(ast == NULL || ast->type != PL_SYMBOL) {
+
+        return;
+    }
+    switch(*(ast->value.symbol.name->type)) {
+        default:
+        case PL_SYMBOL_NOT:
+        case PL_SYMBOL_AND:
+        case PL_SYMBOL_OR:
+            break;
+        case PL_SYMBOL_IMPLIES:
+            // A => B -> !A || B
+            new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+            new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+            new_node->value.symbol.arguments[0] = ast->value.symbol.arguments[0];
+            ast->value.symbol.arguments[0] = new_node;
+            ast->value.symbol.name = &pl_symbols[PL_SYMBOL_OR];
+            break;
+        case PL_SYMBOL_IFF:
+            // A <=> B -> (A || !B) && (!A || B)
+            dup = pl_duplicate_tree(ast);
+            new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_OR]);
+            new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+            new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+            new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+            new_node2->value.symbol.arguments[0] = ast->value.symbol.arguments[1];
+            new_node->value.symbol.arguments[0] = ast->value.symbol.arguments[0];
+            new_node->value.symbol.arguments[1] = new_node2;
+            ast->value.symbol.arguments[0] = new_node;
+            new_node = pl_make_symbol(&pl_symbols[PL_SYMBOL_OR]);
+            new_node2 = pl_make_symbol(&pl_symbols[PL_SYMBOL_NOT]);
+            new_node->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *) * 2); // argc
+            new_node2->value.symbol.arguments = (pl_node_t **) malloc(sizeof(pl_node_t *)); // argc
+            new_node2->value.symbol.arguments[0] = dup->value.symbol.arguments[0];
+            new_node->value.symbol.arguments[0] = new_node2;
+            new_node->value.symbol.arguments[1] = dup->value.symbol.arguments[1];
+            ast->value.symbol.arguments[1] = new_node;
+            ast->value.symbol.name = &pl_symbols[PL_SYMBOL_AND];
+            free(dup);
+            break;
+    }
+    for(i = 0; i < ast->value.symbol.name->argc; i++) {
+        pl_to_boolean_basis(ast->value.symbol.arguments[i]);
+    }
+}
+
+int pl_test(char *line){
+    pl_token_node_t *tokenized = pl_tokenize(line);
+    pl_node_t *tree = pl_parse_ast(NULL, tokenized);
+    assert(tree != NULL);
+    pl_node_t *dup;
+    dup = pl_duplicate_tree(tree);
+//    pl_to_boolean_basis(dup);
+//    pl_demorgan(dup);
+//    pl_conjunct_disjunct(dup);
+    pl_print_tree(dup);
+    printf("\n");
+    return 1;
+}
+
+int pl_cnf(char *line) {
+    pl_token_node_t *tokenized = pl_tokenize(line);
+    pl_node_t *tree = pl_parse_ast(NULL, tokenized);
+    assert(tree != NULL);
+    pl_node_t *dup;
+    dup = pl_duplicate_tree(tree);
+    pl_to_boolean_basis(dup);
+    pl_demorgan(dup);
+    pl_conjunct_disjunct(dup);
+    pl_print_tree(dup);
+    printf("\n");
     return 1;
 }
 
@@ -499,7 +699,6 @@ const pl_symbol_t *pl_symbol_list_pop(pl_symbol_list_t *list) {
 }
 
 pl_node_t *pl_node_list_pop(pl_node_list_t *list) {
-    printf("popping node\n");
     if (list->head == NULL) {
         return NULL;
     }

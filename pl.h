@@ -137,6 +137,9 @@ pl_node_t *pl_build_ast(pl_node_list_t *node_list, pl_node_list_t *visited_list)
 pl_node_t *pl_parse_ast(pl_node_t *ast, pl_token_node_t *tokenized);
 
 int pl_parse_and_print_tree(char *line);
+int pl_simple_parse_and_print_tree(char *line);
+int pl_test(char *line);
+int pl_cnf(char *line);
 
 int pl_parse_and_eval(char *line);
 

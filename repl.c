@@ -10,13 +10,29 @@ command_regex_map_t command_regex_maps[COMMAND_REGEX_MAPS_SIZE] = {
                 .execute_function = &pl_parse_and_print_tree
         },
         {
+            .regex = "^[Ss][Tt][Rr][Ee]{2}\\((.*)\\)",
+            .execute_function = &pl_simple_parse_and_print_tree
+        },
+        {
             .regex = "^[Ee][Vv][Aa][Ll]\\((.*)\\)",
             .execute_function = &pl_parse_and_eval
         },
         {
                 .regex = "^([Ee][Xx][Ii][Tt]|[Qq][Uu][Ii][Tt]).*",
                 .execute_function = &shell_exit
+        },
+        {.regex = "^[Tt][Ee][Ss][Tt]\\((.*)\\)",
+        .execute_function = &pl_test
+        },
+        {.regex = "^[Cc][Nn][Ff]\\((.*)\\)",
+        .execute_function = &pl_cnf
         }
+        // setstatus
+        // addsymbol
+        // addaxiom(formula)
+        // addrule(premise1,premise2...|conclusion)
+        // addhypothesis(formula)
+        // run/prove/findproof
 };
 
 void compile_command_regex_maps(void) {
@@ -38,6 +54,7 @@ int shell_exit(char *line) {
     for (i = 0; i < COMMAND_REGEX_MAPS_SIZE; i++) {
         regfree(&command_regex_maps[i].compiled_regex);
     }
+    // May the logic be with you.
     return 0;
 }
 
