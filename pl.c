@@ -375,7 +375,14 @@ pl_node_t *pl_duplicate_tree(pl_node_t *ast) {
     return dup;
 }
 
-void pl_demorgan(pl_node_t *ast) {
+void pl_print_step(void **args) {
+    pl_node_t *ast;
+    ast = (pl_node_t *)*args;
+    pl_print_tree(ast);
+    printf("\n");
+}
+
+void pl_demorgan(pl_node_t *ast, void (*callback)(void **args), void **args) {
     int i;
     pl_node_t *next, *new_node, *new_node2, *temp;
     if(ast == NULL || ast->type != PL_SYMBOL) {
@@ -392,6 +399,7 @@ void pl_demorgan(pl_node_t *ast) {
                     *ast = *temp;
                     free(temp);
                     free(next);
+                    callback(args);
                     break;
                 // TODO: abstract these two cases in one method
                 case PL_SYMBOL_AND:
@@ -409,6 +417,7 @@ void pl_demorgan(pl_node_t *ast) {
                     free(next);
                     *ast = *new_node;
                     free(new_node);
+                    callback(args);
                     break;
                 case PL_SYMBOL_OR:
                     // !(A || B) -> (!A) && (!B)
@@ -425,16 +434,17 @@ void pl_demorgan(pl_node_t *ast) {
                     free(next);
                     *ast = *new_node;
                     free(new_node);
+                    callback(args);
                     break;
             }
         }
     }
     for(i = 0; i < ast->value.symbol.name->argc; i++) {
-        pl_demorgan(ast->value.symbol.arguments[i]);
+        pl_demorgan(ast->value.symbol.arguments[i], callback, args);
     }
 }
 
-void pl_conjunct_disjunct(pl_node_t *ast) {
+void pl_conjunct_disjunct(pl_node_t *ast,void (*callback)(void **args), void **args) {
     int i;
     pl_node_t *new_node, *dup;
     if(ast == NULL || ast->type != PL_SYMBOL) {
@@ -457,15 +467,16 @@ void pl_conjunct_disjunct(pl_node_t *ast) {
                 new_node->value.symbol.arguments[1] = ast->value.symbol.arguments[i]->value.symbol.arguments[1];
                 ast->value.symbol.arguments[i] = new_node;
                 ast->value.symbol.name = &pl_symbols[PL_SYMBOL_AND];
+                callback(args);
             }
         }
     }
     for(i = 0; i < ast->value.symbol.name->argc; i++) {
-        pl_conjunct_disjunct(ast->value.symbol.arguments[i]);
+        pl_conjunct_disjunct(ast->value.symbol.arguments[i], callback, args);
     }
 }
 
-void pl_to_boolean_basis(pl_node_t *ast) {
+void pl_to_boolean_basis(pl_node_t *ast,void (*callback)(void **args), void **args) {
     int i;
     pl_node_t *new_node, *new_node2, *dup;
     if(ast == NULL || ast->type != PL_SYMBOL) {
@@ -485,6 +496,7 @@ void pl_to_boolean_basis(pl_node_t *ast) {
             new_node->value.symbol.arguments[0] = ast->value.symbol.arguments[0];
             ast->value.symbol.arguments[0] = new_node;
             ast->value.symbol.name = &pl_symbols[PL_SYMBOL_OR];
+            callback(args);
             break;
         case PL_SYMBOL_IFF:
             // A <=> B -> (A || !B) && (!A || B)
@@ -507,10 +519,11 @@ void pl_to_boolean_basis(pl_node_t *ast) {
             ast->value.symbol.arguments[1] = new_node;
             ast->value.symbol.name = &pl_symbols[PL_SYMBOL_AND];
             free(dup);
+            callback(args);
             break;
     }
     for(i = 0; i < ast->value.symbol.name->argc; i++) {
-        pl_to_boolean_basis(ast->value.symbol.arguments[i]);
+        pl_to_boolean_basis(ast->value.symbol.arguments[i],callback,args);
     }
 }
 
@@ -534,9 +547,11 @@ int pl_cnf(char *line) {
     assert(tree != NULL);
     pl_node_t *dup;
     dup = pl_duplicate_tree(tree);
-    pl_to_boolean_basis(dup);
-    pl_demorgan(dup);
-    pl_conjunct_disjunct(dup);
+    pl_print_tree(dup);
+    printf("\n");
+    pl_to_boolean_basis(dup, &pl_print_step, (void **)&dup);
+    pl_demorgan(dup, &pl_print_step, (void **)&dup);
+    pl_conjunct_disjunct(dup, &pl_print_step, (void **)&dup);
     pl_print_tree(dup);
     printf("\n");
     return 1;
