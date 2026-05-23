@@ -4,8 +4,8 @@ LDFLAGS =
 
 OBJS = arena.o ast.o lex.o print.o pratt.o pc.o combo.o main.o
 
-tpcas3: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o tpcas3 $(LDFLAGS)
+tpcas: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o tpcas $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -19,10 +19,10 @@ pc.o:     pc.c pc.h ast.h arena.h
 combo.o:  combo.c combo.h pc.h ast.h arena.h
 main.o:   main.c pratt.h combo.h print.h ast.h arena.h
 
-test: tpcas3
-	./tpcas3
+test: tpcas
+	./tpcas
 
 clean:
-	rm -f *.o tpcas3
+	rm -f *.o tpcas
 
 .PHONY: test clean
