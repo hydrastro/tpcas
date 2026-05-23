@@ -1,6 +1,6 @@
 # tpcas
 
-TPCAS is a small C parser-combinator implementation of a typed propositional / first-order / higher-order expression grammar. It keeps a Pratt parser beside the combinator parser and verifies that both parsers produce alpha-equivalent ASTs for the same inputs.
+TPCAS is a small C parser-combinator implementation of a typed propositional / first-order / higher-order expression grammar. It keeps a Pratt parser beside the combinator parser and verifies that both parsers produce alpha-equivalent ASTs for the same inputs. The surface grammar also includes a compact arithmetic layer (`+`, `-`, `*`, `/`, decimal literals, and unary `-`) so other C programs can embed TPCAS as a normal infix expression parser instead of using Lisp/S-expression input.
 
 ## Layout
 
@@ -49,20 +49,28 @@ make MODE=asan
 make CC=clang
 ```
 
+Build with Nix:
+
+```sh
+nix build
+nix run . -- 'x * (28 - z) - y'
+```
+
 ## Test
 
 ```sh
 make test
 ```
 
-The built-in suite runs 39 expressions through both parsers and checks AST equality.
+The built-in suite runs 45 expressions through both parsers and checks AST equality, including the arithmetic extension.
 
 ## Parse one expression
 
 ```sh
 make run ARGS='forall x:Nat. P(x) || !P(x)'
+make run ARGS='x * (28 - z) - y'
 # or:
-./build/tpcas 'forall x:Nat. P(x) || !P(x)'
+./build/tpcas 'x * y - (8 / 3) * z'
 ```
 
 ## Clean generated files
