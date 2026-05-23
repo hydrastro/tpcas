@@ -9,6 +9,7 @@
 #   make prune-legacy remove known pre-src/ migration garbage from repo root
 
 CC       ?= cc
+CXX      ?= c++
 AR       ?= ar
 RM       ?= rm -f
 RMDIR    ?= rm -rf
@@ -36,6 +37,7 @@ CPPFLAGS ?=
 CPPFLAGS += -I$(SRC_DIR) -Ivendor/ds
 CFLAGS   ?=
 CFLAGS   += $(STD) $(WARNINGS)
+CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic
 LDFLAGS  ?=
 LDLIBS   ?=
 
@@ -75,7 +77,7 @@ MAIN_OBJS:= $(patsubst %.c,$(OBJ_DIR)/%.o,$(TPCAS_MAIN_SRCS))
 OBJS     := $(LIB_OBJS) $(MAIN_OBJS)
 DEPS     := $(patsubst %.c,$(DEP_DIR)/%.d,$(SRCS))
 
-.PHONY: all test run clean distclean prune-legacy format install uninstall help print-vars
+.PHONY: all test check-cpp run clean distclean prune-legacy format install uninstall help print-vars
 
 all: $(TARGET) $(STATIC_LIB)
 
@@ -93,6 +95,13 @@ $(OBJ_DIR)/%.o: %.c
 
 test: $(TARGET)
 	./$(TARGET)
+
+$(BUILD_DIR)/cpp-smoke: test/cpp_smoke.cpp $(STATIC_LIB)
+	@$(MKDIR_P) $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $< $(STATIC_LIB) $(LDLIBS)
+
+check-cpp: $(BUILD_DIR)/cpp-smoke
+	./$(BUILD_DIR)/cpp-smoke
 
 run: $(TARGET)
 	./$(TARGET) $(ARGS)

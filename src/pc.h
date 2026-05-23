@@ -6,6 +6,10 @@
 #include "arena.h"
 #include "ast.h"   /* for span_t */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ============================================================
  * Parser combinators — focused, Parsec-style.
  *
@@ -132,5 +136,10 @@ typedef struct {
 } pc_result_t;
 
 pc_result_t pc_run(parser_t *p, const char *input, arena_t *arena);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
