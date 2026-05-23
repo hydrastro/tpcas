@@ -1,4 +1,5 @@
 #include "pc.h"
+#include "lib/str.h"
 #include <string.h>
 #include <ctype.h>
 
@@ -517,22 +518,25 @@ static const char *format_expected(arena_t *a,
                                    const char **arr, size_t n) {
     if (n == 0) return "syntax error";
     if (n == 1) return arr[0];
-    size_t total = 0;
-    for (size_t i = 0; i < n; i++) total += strlen(arr[i]);
-    total += n * 6 + 8; /* commas, spaces, "or " */
-    char *buf = arena_alloc(a, total);
-    char *w = buf;
+
+    ds_str_t *msg = str_create();
+    if (!msg) return "syntax error";
+
     for (size_t i = 0; i < n; i++) {
         if (i > 0) {
-            if (n == 2)     { *w++ = ' '; }
-            else            { *w++ = ','; *w++ = ' '; }
-            if (i == n - 1) { *w++ = 'o'; *w++ = 'r'; *w++ = ' '; }
+            if (n == 2) {
+                str_pushc(msg, ' ');
+            } else {
+                str_append_cstr(msg, ", ");
+            }
+            if (i == n - 1) str_append_cstr(msg, "or ");
         }
-        size_t L = strlen(arr[i]);
-        memcpy(w, arr[i], L); w += L;
+        str_append_cstr(msg, arr[i]);
     }
-    *w = '\0';
-    return buf;
+
+    const char *out = arena_strndup(a, FUNC_str_cstr(msg), FUNC_str_len(msg));
+    str_destroy(msg);
+    return out ? out : "syntax error";
 }
 
 pc_result_t pc_run(parser_t *p, const char *input, arena_t *arena) {
