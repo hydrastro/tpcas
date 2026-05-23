@@ -2,20 +2,27 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -Wpedantic -std=c11 -g -O0
 LDFLAGS =
 
-OBJS = arena.o ast.o lex.o parse.o print.o eval.o transform.o repl.o main.o
+OBJS = arena.o ast.o lex.o print.o pratt.o pc.o combo.o main.o
 
-all: tpcas
-
-tpcas: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+tpcas3: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o tpcas3 $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+arena.o:  arena.c arena.h
+ast.o:    ast.c ast.h
+lex.o:    lex.c lex.h ast.h
+print.o:  print.c print.h ast.h
+pratt.o:  pratt.c pratt.h lex.h ast.h arena.h
+pc.o:     pc.c pc.h ast.h arena.h
+combo.o:  combo.c combo.h pc.h ast.h arena.h
+main.o:   main.c pratt.h combo.h print.h ast.h arena.h
+
+test: tpcas3
+	./tpcas3
+
 clean:
-	rm -f $(OBJS) tpcas
+	rm -f *.o tpcas3
 
-test: tpcas
-	@./run_tests.sh
-
-.PHONY: all clean test
+.PHONY: test clean
