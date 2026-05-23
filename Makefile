@@ -1,18 +1,21 @@
-CC=gcc
-CFLAGS=-g -Wall
-TARGET=tpcas
-SOURCES=main.c pl.c repl.c
-OBJECTS=$(SOURCES:.c=.o)
-LIBRARIES=-lmpfr
+CC      = gcc
+CFLAGS  = -Wall -Wextra -Wpedantic -std=c11 -g -O0
+LDFLAGS =
 
-all: $(TARGET)
+OBJS = arena.o ast.o lex.o parse.o print.o eval.o transform.o repl.o main.o
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) -o $(TARGET) $(LIBRARIES)
+all: tpcas
 
-.c.o:
+tpcas: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJS) tpcas
 
+test: tpcas
+	@./run_tests.sh
+
+.PHONY: all clean test

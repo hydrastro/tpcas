@@ -1,29 +1,9 @@
-#ifndef CAS_REPL_H
-#define CAS_REPL_H
-#define COMMAND_REGEX_MAPS_SIZE 6
-#include <regex.h>
+#ifndef REPL_H
+#define REPL_H
 
-typedef enum SHELL_EXIT_CODES {
-    SHELL_EXIT_SUCCESS,
-    SHELL_EXIT_FAILURE
-} SHELL_EXIT_CODES;
+#include "arena.h"
 
-typedef struct command_regex_map {
-    char *regex;
-    regex_t compiled_regex;
+/* Top-level REPL loop.  Reads lines, dispatches to commands, prints results. */
+int repl_run(arena_t *arena);
 
-    int (*execute_function)(char *);
-} command_regex_map_t;
-
-
-void compile_command_regex_maps(void);
-
-int shell_exit(char *line);
-
-int process_line(char *line);
-
-char *read_line(void);
-
-void shell_loop();
-
-#endif //CAS_REPL_H
+#endif
