@@ -1,0 +1,22 @@
+# Build output (everything generated lives under build/)
+/build/
+
+# Nix
+/result
+/result-*
+
+# Legacy flat-tree migration artifacts
+/tpcas
+/tpcas3
+/test_rt
+/*.o
+/src.zip
+/tpcas_ds_refactor
+/tpcas_ds_refactor.zip
+
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
+compile_commands.json
+.cache/
