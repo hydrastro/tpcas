@@ -1,5 +1,5 @@
 #include "pc.h"
-#include "lib/str.h"
+#include <ds.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -519,23 +519,23 @@ static const char *format_expected(arena_t *a,
     if (n == 0) return "syntax error";
     if (n == 1) return arr[0];
 
-    ds_str_t *msg = str_create();
+    ds_str_t *msg = ds_str_create();
     if (!msg) return "syntax error";
 
     for (size_t i = 0; i < n; i++) {
         if (i > 0) {
             if (n == 2) {
-                str_pushc(msg, ' ');
+                ds_str_pushc(msg, ' ');
             } else {
-                str_append_cstr(msg, ", ");
+                ds_str_append_cstr(msg, ", ");
             }
-            if (i == n - 1) str_append_cstr(msg, "or ");
+            if (i == n - 1) ds_str_append_cstr(msg, "or ");
         }
-        str_append_cstr(msg, arr[i]);
+        ds_str_append_cstr(msg, arr[i]);
     }
 
     const char *out = arena_strndup(a, FUNC_str_cstr(msg), FUNC_str_len(msg));
-    str_destroy(msg);
+    ds_str_destroy(msg);
     return out ? out : "syntax error";
 }
 

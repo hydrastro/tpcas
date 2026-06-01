@@ -1,0 +1,62 @@
+{
+  "nodes": {
+    "ds": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1780346483,
+        "narHash": "sha256-RZtWDYuNeCf8lIfhf0l7H+PLTR8knUX2cYZneBDQ7K0=",
+        "owner": "hydrastro",
+        "repo": "ds",
+        "rev": "9e3224b3aef9b6e271d02b76ff671b1db4301601",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hydrastro",
+        "repo": "ds",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1739482815,
+        "narHash": "sha256-/5Lwtmp/8j+ro32gXzitucSdyjJ6QehfJCL58WNA7N0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ba0939c506a03c60a765cd7f7c43794816540eec",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1780246643,
+        "narHash": "sha256-4T1KWX7xWGQMs9hNZ24IOY3aYOi8D6+5WtkNRBSttB8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "3109eaae18e09d0b8aef23dc2579e7d94b8d4b4e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "ds": "ds",
+        "nixpkgs": "nixpkgs_2"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

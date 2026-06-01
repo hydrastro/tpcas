@@ -1,5 +1,5 @@
 #include "arena.h"
-#include "lib/allocators.h"
+#include <ds.h>
 
 #include <stdint.h>
 #include <string.h>

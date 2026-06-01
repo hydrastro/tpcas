@@ -2,7 +2,7 @@
 #define ARENA_H
 
 #include <stddef.h>
-#include "lib/context.h"
+#include <ds.h>
 
 #ifdef __cplusplus
 extern "C" {
