@@ -66,10 +66,10 @@ make CC=clang
 ## Test
 
 ```sh
-make check
+make test
 ```
 
-`make check` runs 51 expressions through both parsers and checks AST equality, including precedence, unary minus, decimal literals, and scientific notation. It also runs the C++ linkage/API smoke test. The same checks run during `nix build`.
+The built-in suite runs 39 expressions through both parsers and checks AST equality, including the arithmetic extension. An optional C++ linkage check is available via `make check-cpp`.
 
 ## Parse one expression
 

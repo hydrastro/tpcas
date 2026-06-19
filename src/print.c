@@ -13,9 +13,8 @@
  * the "tight" side, requires parens on the other.
  * ============================================================ */
 
-#define PREC_BINDER     10
-#define PREC_PREFIX_NEG 95
-#define PREC_ATOM       1000
+#define PREC_BINDER 10
+#define PREC_ATOM   1000
 
 void print_type(FILE *out, const type_t *t) {
     if (!t) { fputs("?", out); return; }
@@ -62,15 +61,11 @@ static void rec(FILE *out, const node_t *n, int ctx_prec) {
         case NODE_APP:
             if (n->app.head->kind == NODE_CONST && n->app.head->cnst.op) {
                 const op_info_t *op = n->app.head->cnst.op;
-                if ((op->fixity == FIXITY_PREFIX || op == &OP_SUB) &&
-                    n->app.argc == 1) {
-                    const int precedence = op == &OP_SUB
-                                             ? PREC_PREFIX_NEG
-                                             : op->precedence;
-                    bool wrap = precedence < ctx_prec;
+                if (op->fixity == FIXITY_PREFIX && n->app.argc == 1) {
+                    bool wrap = op->precedence < ctx_prec;
                     if (wrap) fputc('(', out);
                     fputs(op->syntax, out);
-                    rec(out, n->app.args[0], precedence);
+                    rec(out, n->app.args[0], op->precedence);
                     if (wrap) fputc(')', out);
                     return;
                 }

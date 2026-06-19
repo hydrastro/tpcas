@@ -65,16 +65,20 @@ typedef struct {
 } op_info_t;
 
 /* Pre-defined operators (extern so transforms can compare by &OP_AND etc.) */
-extern const op_info_t OP_ADD;
-extern const op_info_t OP_SUB;     /* also unary negation in a one-argument app */
-extern const op_info_t OP_MUL;
-extern const op_info_t OP_DIV;
 extern const op_info_t OP_NOT;
 extern const op_info_t OP_AND;
 extern const op_info_t OP_OR;
 extern const op_info_t OP_IMP;
 extern const op_info_t OP_IFF;
 extern const op_info_t OP_EQ;     /* equality, useful for FOL/HOL */
+/* Arithmetic operators — useful for embedding TPCAS as a general expression
+ * parser (e.g. dynsys parses ODE/map right-hand sides through TPCAS). Higher
+ * precedence than the logical connectives so "a*b + c = d" groups as
+ * "((a*b)+c) = d". */
+extern const op_info_t OP_MUL;
+extern const op_info_t OP_DIV;
+extern const op_info_t OP_ADD;
+extern const op_info_t OP_SUB;
 
 const op_info_t *op_lookup(const char *syntax);
 const op_info_t *const *op_all(size_t *count);
