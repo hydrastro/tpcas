@@ -185,6 +185,23 @@ static void *combine_binop(void *l, void *o, void *r, arena_t *a, void *ctx) {
     return ast_app2(a, head, L, R, s);
 }
 
+/* Arithmetic helpers: let operators that SHARE a precedence level (e.g. * and
+ * /, or + and -) be parsed by one chain. map_op_value tags an operator-symbol
+ * parser with its op_info_t; combine_binop_from_value reads that op back when
+ * building the node, so the actually-parsed operator is used. */
+static void *map_op_value(void *v, arena_t *a, void *ctx) {
+    (void)v; (void)a;
+    return ctx;
+}
+static void *combine_binop_from_value(void *l, void *o, void *r, arena_t *a, void *ctx) {
+    (void)ctx;
+    const op_info_t *op = o;
+    node_t *L = l, *R = r;
+    span_t s = L->span; s.end = R->span.end;
+    node_t *head = ast_const(a, op->name, op, s);
+    return ast_app2(a, head, L, R, s);
+}
+
 /* ---- prefix NOT: (\!  expr) → !expr ---- */
 static void *map_wrap_not(void *v, arena_t *a, void *ctx) {
     (void)ctx;
@@ -194,6 +211,18 @@ static void *map_wrap_not(void *v, arena_t *a, void *ctx) {
     span_t s = bs->span; s.end = inner->span.end;
     node_t *head = ast_const(a, OP_NOT.name, &OP_NOT, bs->span);
     return ast_app1(a, head, inner, s);
+}
+
+/* ---- prefix arithmetic negation: -expr → (0 - expr) ---- */
+static void *map_wrap_neg(void *v, arena_t *a, void *ctx) {
+    (void)ctx;
+    pc_pair_t *p = v;
+    pc_spanned_t *ms = p->first;
+    node_t *inner = p->second;
+    span_t s = ms->span; s.end = inner->span.end;
+    node_t *zero = ast_const(a, "0", NULL, ms->span);
+    node_t *head = ast_const(a, OP_SUB.name, &OP_SUB, ms->span);
+    return ast_app2(a, head, zero, inner, s);
 }
 
 /* ---- var node from a spanned ident ---- */
@@ -322,6 +351,10 @@ combo_result_t combo_parse(const char *src, arena_t *a) {
      * "=" must not match when followed by ">"  ("=>" lives at a higher level).
      * The others have no prefix conflicts. */
     parser_t *s_not     = lex(a, p_punct(a, "!",   NULL), ws);
+    parser_t *s_mul     = lex(a, p_punct(a, "*",   NULL), ws);
+    parser_t *s_div     = lex(a, p_punct(a, "/",   NULL), ws);
+    parser_t *s_add     = lex(a, p_punct(a, "+",   NULL), ws);
+    parser_t *s_sub     = lex(a, p_punct(a, "-",   ">" ), ws);  /* forbid "->" */
     parser_t *s_and     = lex(a, p_punct(a, "&&",  NULL), ws);
     parser_t *s_or      = lex(a, p_punct(a, "||",  NULL), ws);
     parser_t *s_iff     = lex(a, p_punct(a, "<=>", NULL), ws);
@@ -390,16 +423,31 @@ combo_result_t combo_parse(const char *src, arena_t *a) {
         pc_pair(a, atom, pc_opt_or(a, call_tail, NULL)),
         map_apply, NULL);
 
-    /* === prefix NOT === */
+    /* === prefix NOT and unary minus === */
     parser_t *not_then_inner = pc_pair(a, pc_with_span(a, s_not), not_expr_ref);
-    parser_t *not_expr = pc_alt(a,
+    parser_t *neg_then_inner = pc_pair(a, pc_with_span(a, s_sub), not_expr_ref);
+    parser_t *prefix_alts[] = {
         pc_map(a, not_then_inner, map_wrap_not, NULL),
-        app_expr);
+        pc_map(a, neg_then_inner, map_wrap_neg, NULL),
+        app_expr
+    };
+    parser_t *not_expr = pc_alts(a, prefix_alts, 3);
     pc_set(not_expr_ref, not_expr);
 
     /* === precedence stack ===
-     *   "direction" of each level is encoded by the chain combinator */
-    parser_t *and_expr = pc_chainl1   (a, not_expr, s_and, combine_binop, mk_op_ctx(a, &OP_AND));
+     *   "direction" of each level is encoded by the chain combinator.
+     *   Arithmetic binds tighter than the logical connectives:
+     *     not  >  * /  >  + -  >  && > || > = > => > <=>  */
+    parser_t *mul_op = pc_alt(a,
+        pc_map(a, s_mul, map_op_value, (void *)&OP_MUL),
+        pc_map(a, s_div, map_op_value, (void *)&OP_DIV));
+    parser_t *add_op = pc_alt(a,
+        pc_map(a, s_add, map_op_value, (void *)&OP_ADD),
+        pc_map(a, s_sub, map_op_value, (void *)&OP_SUB));
+
+    parser_t *mul_expr = pc_chainl1   (a, not_expr, mul_op, combine_binop_from_value, NULL);
+    parser_t *add_expr = pc_chainl1   (a, mul_expr, add_op, combine_binop_from_value, NULL);
+    parser_t *and_expr = pc_chainl1   (a, add_expr, s_and, combine_binop, mk_op_ctx(a, &OP_AND));
     parser_t *or_expr  = pc_chainl1   (a, and_expr, s_or,  combine_binop, mk_op_ctx(a, &OP_OR));
     parser_t *eq_expr  = pc_chain_none(a, or_expr,  s_eq,  combine_binop, mk_op_ctx(a, &OP_EQ));
     parser_t *imp_expr = pc_chainr1   (a, eq_expr,  s_imp, combine_binop, mk_op_ctx(a, &OP_IMP));

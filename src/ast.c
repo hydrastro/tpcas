@@ -8,6 +8,10 @@
  * ============================================================ */
 
 const op_info_t OP_NOT = {"NOT", "!",   1, 90, ASSOC_NONE,  FIXITY_PREFIX};
+const op_info_t OP_MUL = {"MUL", "*",   2, 85, ASSOC_LEFT,  FIXITY_INFIX };
+const op_info_t OP_DIV = {"DIV", "/",   2, 85, ASSOC_LEFT,  FIXITY_INFIX };
+const op_info_t OP_ADD = {"ADD", "+",   2, 80, ASSOC_LEFT,  FIXITY_INFIX };
+const op_info_t OP_SUB = {"SUB", "-",   2, 80, ASSOC_LEFT,  FIXITY_INFIX };
 const op_info_t OP_AND = {"AND", "&&",  2, 70, ASSOC_LEFT,  FIXITY_INFIX };
 const op_info_t OP_OR  = {"OR",  "||",  2, 60, ASSOC_LEFT,  FIXITY_INFIX };
 const op_info_t OP_EQ  = {"EQ",  "=",   2, 50, ASSOC_NONE,  FIXITY_INFIX };
@@ -15,7 +19,8 @@ const op_info_t OP_IMP = {"IMP", "=>",  2, 40, ASSOC_RIGHT, FIXITY_INFIX };
 const op_info_t OP_IFF = {"IFF", "<=>", 2, 30, ASSOC_NONE,  FIXITY_INFIX };
 
 static const op_info_t *const OPS[] = {
-    &OP_NOT, &OP_AND, &OP_OR, &OP_EQ, &OP_IMP, &OP_IFF
+    &OP_NOT, &OP_MUL, &OP_DIV, &OP_ADD, &OP_SUB,
+    &OP_AND, &OP_OR, &OP_EQ, &OP_IMP, &OP_IFF
 };
 
 const op_info_t *op_lookup(const char *syntax) {
