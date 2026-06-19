@@ -67,6 +67,19 @@ static const char *TESTS[] = {
     "false",
     "true && false",
     "forall x. x = x",
+    /* arithmetic */
+    "1 + 2",
+    "1 + 2 * 3",
+    "(1 + 2) * 3",
+    "8 / 4 / 2",
+    "8 - 4 - 2",
+    "-x",
+    "--x",
+    "-f(x)",
+    "x * -y",
+    ".5 + 1.",
+    "1e-3 * 2.5E+2",
+    "x * (28 - z) - y",
 };
 
 static int run_one(const char *src, bool verbose) {

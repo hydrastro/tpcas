@@ -32,7 +32,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define BP_APPLY 100   /* binding power of "(" in led position */
+#define BP_APPLY      100  /* binding power of "(" in led position */
+#define BP_PREFIX_NEG   95  /* below calls, above multiplication/division */
 
 typedef struct {
     lexer_t    *lex;
@@ -74,17 +75,18 @@ static int infix_lbp(token_t t) {
 /* ============================================================ */
 static node_t *parse_nud(parser_t *p, token_t t) {
     switch (t.kind) {
-        case TOK_OP:
-            if (t.op->fixity != FIXITY_PREFIX) {
+        case TOK_OP: {
+            const bool unary_sub = t.op == &OP_SUB;
+            if (!unary_sub && t.op->fixity != FIXITY_PREFIX) {
                 p_error(p, t.span, "operator used in prefix position is not prefix");
                 return NULL;
             }
-            {
-                node_t *arg = parse_expr(p, t.op->precedence);
-                if (!arg) return NULL;
-                node_t *head = ast_const(p->arena, t.op->name, t.op, t.span);
-                return ast_app1(p->arena, head, arg, span_join(t.span, arg->span));
-            }
+            const int rbp = unary_sub ? BP_PREFIX_NEG : t.op->precedence;
+            node_t *arg = parse_expr(p, rbp);
+            if (!arg) return NULL;
+            node_t *head = ast_const(p->arena, t.op->name, t.op, t.span);
+            return ast_app1(p->arena, head, arg, span_join(t.span, arg->span));
+        }
 
         case TOK_LPAREN: {
             node_t *e = parse_expr(p, 0);

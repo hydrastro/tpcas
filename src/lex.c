@@ -99,7 +99,10 @@ token_t lex_next(lexer_t *l) {
     if (c == '(') { advance(l); return mk_tok(TOK_LPAREN,    make_span(l,start,sline,scol), "("); }
     if (c == ')') { advance(l); return mk_tok(TOK_RPAREN,    make_span(l,start,sline,scol), ")"); }
     if (c == ',') { advance(l); return mk_tok(TOK_COMMA,     make_span(l,start,sline,scol), ","); }
-    if (c == '.') { advance(l); return mk_tok(TOK_DOT,       make_span(l,start,sline,scol), "."); }
+    if (c == '.' && !isdigit((unsigned char)peek_ch(l, 1))) {
+        advance(l);
+        return mk_tok(TOK_DOT, make_span(l, start, sline, scol), ".");
+    }
     if (c == ':') { advance(l); return mk_tok(TOK_COLON,     make_span(l,start,sline,scol), ":"); }
     if (c == '\\'){ advance(l); return mk_tok(TOK_BACKSLASH, make_span(l,start,sline,scol), "\\"); }
 
@@ -119,9 +122,40 @@ token_t lex_next(lexer_t *l) {
         return t;
     }
 
-    /* number */
-    if (isdigit((unsigned char)c)) {
-        while (l->pos < l->len && isdigit((unsigned char)l->src[l->pos])) advance(l);
+    /* number: integer, decimal, or scientific notation */
+    if (isdigit((unsigned char)c) ||
+        (c == '.' && isdigit((unsigned char)peek_ch(l, 1)))) {
+        while (l->pos < l->len &&
+               isdigit((unsigned char)l->src[l->pos])) {
+            advance(l);
+        }
+
+        if (l->pos < l->len && l->src[l->pos] == '.') {
+            advance(l);
+            while (l->pos < l->len &&
+                   isdigit((unsigned char)l->src[l->pos])) {
+                advance(l);
+            }
+        }
+
+        if (l->pos < l->len &&
+            (l->src[l->pos] == 'e' || l->src[l->pos] == 'E')) {
+            size_t lookahead = 1;
+            char next = peek_ch(l, lookahead);
+            if (next == '+' || next == '-') lookahead++;
+            if (isdigit((unsigned char)peek_ch(l, lookahead))) {
+                advance(l); /* e/E */
+                if (l->pos < l->len &&
+                    (l->src[l->pos] == '+' || l->src[l->pos] == '-')) {
+                    advance(l);
+                }
+                while (l->pos < l->len &&
+                       isdigit((unsigned char)l->src[l->pos])) {
+                    advance(l);
+                }
+            }
+        }
+
         size_t n = l->pos - start;
         char *lex = arena_strndup(l->arena, l->src + start, n);
         return mk_tok(TOK_NUMBER, make_span(l, start, sline, scol), lex);

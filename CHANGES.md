@@ -1,3 +1,11 @@
+## Arithmetic parser completion
+
+- Added public `OP_ADD`, `OP_SUB`, `OP_MUL`, and `OP_DIV` operator metadata.
+- Added arithmetic precedence and unary minus to both the Pratt and combinator parsers.
+- Added decimal and scientific-notation literals to both lexing paths.
+- Added arithmetic regression cases and C++ API/AST-shape checks.
+- Added `make check`, ignored generated build output, and made sanitizer linking work for the C++ smoke test.
+
 # Changes
 
 ## main.c moved out of src/

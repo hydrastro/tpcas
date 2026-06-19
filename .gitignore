@@ -1,11 +1,1 @@
-# build products
 /build/
-
-# nix
-/result
-/result-*
-
-# editor / OS
-*.o
-*.swp
-.DS_Store

@@ -48,7 +48,7 @@
 
             doCheck = true;
             checkPhase = ''
-              make test
+              make check
             '';
 
             installPhase = ''

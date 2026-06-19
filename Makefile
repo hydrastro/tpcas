@@ -78,7 +78,7 @@ MAIN_OBJS:= $(patsubst %.c,$(OBJ_DIR)/%.o,$(TPCAS_MAIN_SRCS))
 OBJS     := $(LIB_OBJS) $(MAIN_OBJS)
 DEPS     := $(patsubst %.c,$(DEP_DIR)/%.d,$(SRCS))
 
-.PHONY: all test check-cpp run clean format install uninstall help print-vars
+.PHONY: all check test check-cpp run clean format install uninstall help print-vars
 
 all: $(TARGET) $(STATIC_LIB)
 
@@ -97,9 +97,11 @@ $(OBJ_DIR)/%.o: %.c
 test: $(TARGET)
 	./$(TARGET)
 
+check: test check-cpp
+
 $(BUILD_DIR)/cpp-smoke: test/cpp_smoke.cpp $(STATIC_LIB)
 	@$(MKDIR_P) $(dir $@)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $< $(STATIC_LIB) $(LDLIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(STATIC_LIB) $(LDLIBS)
 
 check-cpp: $(BUILD_DIR)/cpp-smoke
 	./$(BUILD_DIR)/cpp-smoke
